@@ -10,77 +10,169 @@ struct Node {
 	unsigned short minDepth = 0;
 };
 struct Tree {
-	struct Queue {
-		struct node {
-			Node* data = nullptr;
-			node* next_node = nullptr;
+	template <typename T>
+	struct List {
+		template <typename T>
+		struct Node {
+			T data;
+			Node* next = nullptr;
+			Node* prev = nullptr;
 		};
-		node* head = nullptr;
-		node* tail = nullptr;
-		int counter = 0;
-		void queue(Node* Node) {
-			node* new_node = new node();
-			new_node->data = Node;
-			if (counter == 0) {
-				head = new_node;
-				tail = new_node;
+		int size = 0;
+		int currentIndex = 0;
+		Node<T>* current = nullptr;
+		Node<T>* head = nullptr;
+		Node<T>* tail = nullptr;
+		void toFirst() {
+			if (!size) return;
+			current = head;
+			currentIndex = 0;
+		}
+		void toLast() {
+			if (!size) return;
+			current = tail;
+			currentIndex = count() - 1;
+		}
+		void toNext() {
+			if (!size) return;
+			current = current->next;
+			currentIndex++;
+		}
+		void toPrev() {
+			if (!size) return;
+			current = current->prev;
+			currentIndex--;
+		}
+		void currentTo(int index) {
+			if (!size) return;
+			if ((currentIndex - index) > index) {
+				toFirst();
+			}
+			if ((count() - 1 - index) < (index - currentIndex)) {
+				toLast();
+			}
+			while (index > currentIndex) {
+				toNext();
+			}
+			while (index < currentIndex) {
+				toPrev();
+			}
+		}
+		void removeCurrent() {
+			if (!size) return;
+			Node<T>* delNode = current;
+			if ((delNode != head) and (delNode != tail)) {
+				delNode->prev->next = delNode->next;
+				delNode->next->prev = delNode->prev;
+				current = current->next;
+			}
+			if (delNode == head) {
+				head = delNode->next;
+				if (delNode->next != nullptr) {
+					delNode->next->prev = nullptr;
+					current = current->next;
+				}
+			}
+			if (delNode == tail) {
+				tail = delNode->prev;
+				if (delNode->prev != nullptr) {
+					delNode->prev->next = nullptr;
+					toPrev();
+				}
+			}
+			delete delNode;
+			size--;
+			if (!size) current = nullptr;
+		}
+		void insertBeforeCurrent(T data) {
+			if (!size) return;
+			Node<T>* newNode = new Node<T>;
+			size++;
+			currentIndex++;
+			newNode->data = data;
+			newNode->next = current;
+			newNode->prev = current->prev;
+			if (current->prev != nullptr) current->prev->next = newNode;
+			current->prev = newNode;
+			if (current == head) { head = newNode; }
+		}
+		Node<T>* getCurrent(int index) {
+			currentTo(index);
+			return current;
+		}
+
+		void add(T data) {
+			Node<T>* newNode = new Node<T>;
+			newNode->data = data;
+			if (!size) {
+				currentIndex = 0;
+				current = newNode;
+				head = newNode;
+				tail = newNode;
 			}
 			else {
-				tail->next_node = new_node;
-				tail = new_node;
+				tail->next = newNode;
+				newNode->prev = tail;
+				tail = newNode;
 			}
-			counter++;
+			size++;
 		}
-		int unqueue() {
-			if (counter > 0) {
-				node* new_head = head->next_node;
-				int value = head->data->value;
-				delete head;
-				head = new_head;
-				counter--;
-				return value;
+		void insert(int index, T data) {
+			if ((!size) or (index == size)) {
+				add(data);
 			}
-			else { return 0; }
+			else {
+				currentTo(index);
+				insertBeforeCurrent(data);
+			}
+		}
+		void removeAt(int index) {
+			currentTo(index);
+			removeCurrent();
+		}
+		T elementAt(int index) {
+			currentTo(index);
+			return current->data;
 		}
 		int count() {
-			return counter;
+			return size;
+		}
+		void clear() {
+			for (int i = size; i > 0; i--) {
+				removeCurrent();
+			}
 		}
 	};
 	enum Order { Prefix, Infix, Postfix, LevelsUpLeft, LevelsUpRight, LevelsDownLeft, LevelsDownRight };
 	int size = 0;
 	Node* root = nullptr;
-	void traverseLevelsUpLeft(int* array, int& index, Node* current) {
-		if (current == nullptr) return;
-		Queue* queue = new Queue;
-		queue->queue(current);
+	void traverse(int* array, Order order) {
+		if (root == nullptr) return;
+		int index = 0;
+		List<Node*> list;
+		list.add(root);
 		while (index != size) {
-			for (int i = queue->count(); i > 0; i--) {
-				if (queue->head->data->left != nullptr) {
-					queue->queue(queue->head->data->left);
+			for (int i = list.count(); i > 0; i--) {
+				if (order == LevelsUpLeft || order == LevelsDownRight) {
+					if (list.elementAt(0)->left != nullptr) {
+						list.add(list.elementAt(0)->left);
+					}
 				}
-				if (queue->head->data->right != nullptr) {
-					queue->queue(queue->head->data->right);
+				if (list.elementAt(0)->right != nullptr) {
+					list.add(list.elementAt(0)->right);
 				}
-				array[index] = queue->unqueue();
+				if (order == LevelsUpRight || order == LevelsDownLeft) {
+					if (list.elementAt(0)->left != nullptr) {
+						list.add(list.elementAt(0)->left);
+					}
+				}
+				array[index] = list.elementAt(0)->value;
 				index++;
+				list.removeAt(0);
 			}
 		}
-	}
-	void traverseLevelsUpRight(int* array, int& index, Node* current) {
-		if (current == nullptr) return;
-		Queue* queue = new Queue;
-		queue->queue(current);
-		while (index != size) {
-			for (int i = queue->count(); i > 0; i--) {
-				if (queue->head->data->right != nullptr) {
-					queue->queue(queue->head->data->right);
-				}
-				if (queue->head->data->left != nullptr) {
-					queue->queue(queue->head->data->left);
-				}
-				array[index] = queue->unqueue();
-				index++;
-			}
+		if (order == LevelsDownLeft || order == LevelsDownRight) {
+			reverse(array, array + size);
 		}
 	}
 	void renegadeBalancer(Node* current) {
@@ -177,6 +269,7 @@ struct Tree {
 		}
 	}
 	void req(int* array, int& index, Order order, Node* current) {
+		if (current == nullptr) return;
 		if (order == Prefix) {
 			array[index] = current->value;
 			index++;
@@ -195,25 +288,12 @@ struct Tree {
 	int* ToArray(Order order = Infix) {
 		int* array = new int[count()];
 		int index = 0;
-		if (order == LevelsUpLeft) {
-			traverseLevelsUpLeft(array, index, root);
-			return array;
+		if (order > 2) {
+			traverse(array, order);
 		}
-		if (order == LevelsUpRight) {
-			traverseLevelsUpRight(array, index, root);
-			return array;
+		else {
+			req(array, index, order, root);
 		}
-		if (order == LevelsDownLeft) {
-			traverseLevelsUpRight(array, index, root);
-			reverse(array, array + size);
-			return array;
-		}
-		if (order == LevelsDownRight) {
-			traverseLevelsUpLeft(array, index, root);
-			reverse(array, array + size);
-			return array;
-		}
-		req(array, index, order, root);
 		return array;
 	}
 	bool turn(Node* current, bool isLeft) {
@@ -383,6 +463,42 @@ int main() {
 		tree.add(input);
 		cin >> input;
 	}
+	int* arr = new int[tree.count()];
+	arr = tree.ToArray(tree.Prefix);
+	for (int i = 0; i < tree.count(); i++) {
+		cout << arr[i] << " ";
+	}
+	cout << endl;
+	arr = tree.ToArray(tree.Infix);
+	for (int i = 0; i < tree.count(); i++) {
+		cout << arr[i] << " ";
+	}
+	cout << endl;
+	arr = tree.ToArray(tree.Postfix);
+	for (int i = 0; i < tree.count(); i++) {
+		cout << arr[i] << " ";
+	}
+	cout << endl;
+	arr = tree.ToArray(tree.LevelsUpLeft);
+	for (int i = 0; i < tree.count(); i++) {
+		cout << arr[i] << " ";
+	}
+	cout << endl;
+	arr = tree.ToArray(tree.LevelsUpRight);
+	for (int i = 0; i < tree.count(); i++) {
+		cout << arr[i] << " ";
+	}
+	cout << endl;
+	arr = tree.ToArray(tree.LevelsDownLeft);
+	for (int i = 0; i < tree.count(); i++) {
+		cout << arr[i] << " ";
+	}
+	cout << endl;
+	arr = tree.ToArray(tree.LevelsDownRight);
+	for (int i = 0; i < tree.count(); i++) {
+		cout << arr[i] << " ";
+	}
+	cout << endl;
 	cout << "Enter numbers to search (sequence end sign 0):" << endl;
 	cin >> input;
 	while (input) {
